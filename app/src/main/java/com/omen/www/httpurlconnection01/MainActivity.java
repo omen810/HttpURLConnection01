@@ -36,68 +36,73 @@ public class MainActivity extends AppCompatActivity {
 
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+        //检查网络连接状态
         if (networkInfo != null && networkInfo.isConnected()) {
 //            Toast.makeText(this, "正在下载……", Toast.LENGTH_SHORT).show();
+
+            /*启动AsyncTask任务：doInBackground、onPostExecute等*/
             new DownloadWebpageTask().execute(mUrlEditText.getText().toString());
 
         } else {
             mResultTextView.setText("无法连接网络");
         }
     }
+}
+/*第一个参数：传入给后台任务的参数类型，doInBackground的传入参数*/
+/*第二个参数：ProgressBar的进度显示单位，onProgressUpdate的传入参数，通常为Integer*/
+/*第三个参数：返回的执行结果数据类型，doInBackground的返回参数*/
+private class DownloadWebpageTask extends AsyncTask<String, Void, String> {
 
-    private class DownloadWebpageTask extends AsyncTask<String, Void, String> {
+    @Override
+    protected String doInBackground(String... params) {
+        try {
+            return downloadUrl(params[0]);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Unable to retrieve web page. URL may be invalid.";
+        }
 
-        @Override
-        protected String doInBackground(String... params) {
-            try {
-                return downloadUrl(params[0]);
-            } catch (Exception e) {
-                e.printStackTrace();
-                return "Unable to retrieve web page. URL may be invalid.";
+    }
+
+    private String downloadUrl(String url) throws IOException {
+        InputStream is = null;
+        int len = 500;
+        URL myUrl = new URL(url);
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) myUrl.openConnection();
+            conn.setReadTimeout(10000); /* milliseconds */
+            conn.setConnectTimeout(15000);/* milliseconds */
+            conn.setRequestMethod("GET");
+            conn.setDoInput(true);
+            // Starts the query
+            conn.connect();
+            int response = conn.getResponseCode();
+            Log.d(TAG, "The Response is :" + response);
+            is = conn.getInputStream();
+
+            String contentAsString = readIt(is, len);
+            return contentAsString;
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (is != null) {
+                is.close();
             }
-
         }
+        return  null;
+    }
 
-        private String downloadUrl(String url) throws IOException {
-            InputStream is = null;
-            int len = 500;
-            URL myUrl = new URL(url);
-            HttpURLConnection conn = null;
-            try {
-                conn = (HttpURLConnection) myUrl.openConnection();
-                conn.setReadTimeout(10000); /* milliseconds */
-                conn.setConnectTimeout(15000);/* milliseconds */
-                conn.setRequestMethod("GET");
-                conn.setDoInput(true);
-                // Starts the query
-                conn.connect();
-                int response = conn.getResponseCode();
-                Log.d(TAG, "The Response is :" + response);
-                is = conn.getInputStream();
+    private String readIt(InputStream is, int len) throws IOException,UnsupportedEncodingException {
+        Reader reader=null;
+        reader = new InputStreamReader(is, "UTF-8");
+        char[] buffer = new char[len];
+        reader.read(buffer);
+        return new String(buffer);
+    }
 
-                String contentAsString = readIt(is, len);
-                return contentAsString;
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                if (is != null) {
-                    is.close();
-                }
-            }
-            return  null;
-        }
-
-        private String readIt(InputStream is, int len) throws IOException,UnsupportedEncodingException {
-            Reader reader=null;
-            reader = new InputStreamReader(is, "UTF-8");
-            char[] buffer = new char[len];
-            reader.read(buffer);
-            return new String(buffer);
-        }
-
-        @Override
-        protected void onPostExecute(String s) {
-            mResultTextView.setText(s);
-        }
+    @Override
+    protected void onPostExecute(String s) {
+        mResultTextView.setText(s);
     }
 }
